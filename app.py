@@ -1,13 +1,29 @@
 import os
 import json
 import math
-import joblib
-import torch
-import torch.nn as nn
 import numpy as np
 import pandas as pd
 from flask import Flask, render_template, jsonify, request, send_from_directory
 from datetime import timedelta, timezone, datetime
+
+# Lazy imports for heavy libraries (saves ~200MB RAM at startup)
+torch = None
+nn = None
+joblib_mod = None
+
+def _ensure_torch():
+    global torch, nn
+    if torch is None:
+        import torch as _torch
+        import torch.nn as _nn
+        torch = _torch
+        nn = _nn
+
+def _ensure_joblib():
+    global joblib_mod
+    if joblib_mod is None:
+        import joblib as _joblib
+        joblib_mod = _joblib
 
 # Indian Standard Time (UTC+5:30)
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -34,35 +50,41 @@ _model_cache = {}
 
 
 # ======= UNIVARIATE LSTM MODEL DEFINITION (PyTorch) =======
-class UnivariateLSTMModel(nn.Module):
-    """Univariate BiLSTM model — same architecture for both solar and wind."""
-    def __init__(self, input_size=1, hidden_size=256, num_layers=3, dropout=0.2):
-        super(UnivariateLSTMModel, self).__init__()
-        self.lstm = nn.LSTM(
-            input_size=input_size,
-            hidden_size=hidden_size,
-            num_layers=num_layers,
-            batch_first=True,
-            bidirectional=True,
-            dropout=dropout if num_layers > 1 else 0.0,
-        )
-        fc_input = hidden_size * 2
-        self.fc_block = nn.Sequential(
-            nn.LayerNorm(fc_input),
-            nn.Linear(fc_input, 128),
-            nn.GELU(),
-            nn.Dropout(0.15),
-            nn.Linear(128, 64),
-            nn.GELU(),
-            nn.Dropout(0.1),
-            nn.Linear(64, 1),
-        )
+def _create_model_class():
+    """Factory: creates the model class after torch is loaded."""
+    _ensure_torch()
 
-    def forward(self, x):
-        out, _ = self.lstm(x)
-        out = out[:, -1, :]
-        out = self.fc_block(out)
-        return out
+    class UnivariateLSTMModel(nn.Module):
+        """Univariate BiLSTM model — same architecture for both solar and wind."""
+        def __init__(self, input_size=1, hidden_size=256, num_layers=3, dropout=0.2):
+            super(UnivariateLSTMModel, self).__init__()
+            self.lstm = nn.LSTM(
+                input_size=input_size,
+                hidden_size=hidden_size,
+                num_layers=num_layers,
+                batch_first=True,
+                bidirectional=True,
+                dropout=dropout if num_layers > 1 else 0.0,
+            )
+            fc_input = hidden_size * 2
+            self.fc_block = nn.Sequential(
+                nn.LayerNorm(fc_input),
+                nn.Linear(fc_input, 128),
+                nn.GELU(),
+                nn.Dropout(0.15),
+                nn.Linear(128, 64),
+                nn.GELU(),
+                nn.Dropout(0.1),
+                nn.Linear(64, 1),
+            )
+
+        def forward(self, x):
+            out, _ = self.lstm(x)
+            out = out[:, -1, :]
+            out = self.fc_block(out)
+            return out
+
+    return UnivariateLSTMModel
 
 
 # ================================================================
@@ -110,11 +132,14 @@ def get_solar_predictions(seq_len):
 def get_solar_model_and_scaler():
     """Load the trained univariate solar seq=72 model and scaler."""
     if "solar_model" not in _model_cache:
+        _ensure_torch()
+        _ensure_joblib()
         device = torch.device("cpu")
 
-        scaler = joblib.load(os.path.join(SOLAR_RESULTS_DIR, "scaler.save"))
+        scaler = joblib_mod.load(os.path.join(SOLAR_RESULTS_DIR, "scaler.save"))
 
-        model = UnivariateLSTMModel(input_size=1).to(device)
+        ModelClass = _create_model_class()
+        model = ModelClass(input_size=1).to(device)
         model_path = os.path.join(SOLAR_RESULTS_DIR, f"best_model_seq_{SOLAR_SEQ_LEN}.pth")
         model.load_state_dict(
             torch.load(model_path, map_location=device, weights_only=True)
@@ -185,6 +210,8 @@ def predict_solar_24h():
 def get_wind_model_and_scaler():
     """Load the trained univariate wind seq=48 model and scaler."""
     if "wind_model" not in _model_cache:
+        _ensure_torch()
+        _ensure_joblib()
         device = torch.device("cpu")
 
         scaler_path = os.path.join(WIND_RESULTS_DIR, "scaler.save")
@@ -194,9 +221,10 @@ def get_wind_model_and_scaler():
             _model_cache["wind_model"] = None
             return None, None, None
 
-        scaler = joblib.load(scaler_path)
+        scaler = joblib_mod.load(scaler_path)
 
-        model = UnivariateLSTMModel(input_size=1).to(device)
+        ModelClass = _create_model_class()
+        model = ModelClass(input_size=1).to(device)
         model.load_state_dict(
             torch.load(model_path, map_location=device, weights_only=True)
         )
