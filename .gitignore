@@ -31,7 +31,7 @@ prepare_for_pi.py
 # Documentation (not needed on server)
 DEPLOY_TO_PI.md
 LSTM_Architecture_Diagram.png
-Dockerfile
+
 
 # Old TensorFlow models & training files (not used by app)
 WINDENERGY_FORCASTING_LSTM/models/
