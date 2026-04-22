@@ -21,8 +21,50 @@ build/
 Thumbs.db
 desktop.ini
 
-# Training scripts (not needed for deployment)
+# ===== NOT NEEDED FOR DEPLOYMENT =====
+
+# Training scripts
 model_train.py
 wind_train.py
 prepare_for_pi.py
+
+# Documentation (not needed on server)
+DEPLOY_TO_PI.md
 LSTM_Architecture_Diagram.png
+Dockerfile
+
+# Old TensorFlow models & training files (not used by app)
+WINDENERGY_FORCASTING_LSTM/models/
+WINDENERGY_FORCASTING_LSTM/scalers/
+WINDENERGY_FORCASTING_LSTM/requirements.txt
+WINDENERGY_FORCASTING_LSTM/testing_model.py
+WINDENERGY_FORCASTING_LSTM/training_model.py
+
+# Unused solar model files (app only uses best_model_seq_72)
+solar_pytorch_results/best_model_seq_24.pth
+solar_pytorch_results/best_model_seq_48.pth
+solar_pytorch_results/final_model_seq_24.pth
+solar_pytorch_results/final_model_seq_48.pth
+solar_pytorch_results/final_model_seq_72.pth
+solar_pytorch_results/feature_scaler.save
+solar_pytorch_results/target_scaler.save
+solar_pytorch_results/comparison_results.csv
+solar_pytorch_results/comparison_table.png
+solar_pytorch_results/model_comparition.txt
+solar_pytorch_results/metrics copy.json
+solar_pytorch_results/predictions_seq_24.csv
+solar_pytorch_results/predictions_seq_48.csv
+
+# Unused wind model files (app only uses best_model_seq_48)
+wind_pytorch_results/final_model_seq_48.pth
+wind_pytorch_results/max_power.json
+
+# Plot images (not essential for API)
+solar_pytorch_results/plot_seq_*.png
+solar_pytorch_results/train_pred_plot_seq_*.png
+solar_pytorch_results/test_pred_plot_seq_*.png
+solar_pytorch_results/loss_curve_seq_*.png
+wind_pytorch_results/plot_seq_*.png
+wind_pytorch_results/train_pred_plot_seq_*.png
+wind_pytorch_results/test_pred_plot_seq_*.png
+wind_pytorch_results/loss_curve_seq_*.png
