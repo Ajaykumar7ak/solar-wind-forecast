@@ -1,0 +1,9 @@
+pandas
+numpy
+scikit-learn
+tensorflow
+flask
+flask-cors
+waitress
+joblib
+h5py

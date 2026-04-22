@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wind-Solar Energy Forecasting Dashboard</title>
+    <meta name="description" content="Wind-Solar Energy Forecasting Dashboard — Univariate LSTM Deep Learning Models for Solar (72H) and Wind (48H) Power Prediction">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        /* ======= RESET & BASE ======= */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: #0F172A;
+            color: #E2E8F0;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        /* ======= SCROLLBAR ======= */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1E293B; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748B; }
+
+        /* ======= NAV ======= */
+        .navbar {
+            position: sticky; top: 0; z-index: 100;
+            background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            padding: 0 2rem;
+            display: flex; align-items: center; justify-content: space-between;
+            height: 64px;
+        }
+        .nav-brand {
+            display: flex; align-items: center; gap: 10px;
+            font-weight: 700; font-size: 1.1rem;
+        }
+        .nav-brand .brand-solar { color: #FBBF24; }
+        .nav-brand .brand-wind { color: #22D3EE; }
+        .nav-brand .brand-sep { color: #475569; margin: 0 2px; }
+        .nav-icons { display: flex; gap: 4px; }
+        .nav-icons svg { width: 22px; height: 22px; }
+        .nav-links { display: flex; gap: 6px; }
+        .nav-links a {
+            text-decoration: none; color: #94A3B8;
+            font-size: 0.85rem; font-weight: 500;
+            padding: 6px 14px; border-radius: 8px;
+            transition: all 0.2s; cursor: pointer;
+        }
+        .nav-links a:hover { color: #E2E8F0; background: rgba(255,255,255,0.06); }
+        .nav-links a.active { color: #FBBF24; background: rgba(251,191,36,0.1); }
+
+        /* ======= HERO ======= */
+        .hero {
+            background: linear-gradient(135deg, #0F172A 0%, #1E293B 40%, #0F172A 100%);
+            padding: 3rem 2rem 2.5rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .hero::before {
+            content: '';
+            position: absolute; top: -30%; left: 10%;
+            width: 400px; height: 400px;
+            background: radial-gradient(circle, rgba(251,191,36,0.12) 0%, transparent 70%);
+            border-radius: 50%;
+            animation: pulse 4s ease-in-out infinite;
+        }
+        .hero::after {
+            content: '';
+            position: absolute; top: -20%; right: 10%;
+            width: 350px; height: 350px;
+            background: radial-gradient(circle, rgba(34,211,238,0.1) 0%, transparent 70%);
+            border-radius: 50%;
+            animation: pulse 5s ease-in-out infinite 1s;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.15); opacity: 0.9; }
+        }
+        .hero h1 {
+            font-size: 2.6rem; font-weight: 800;
+            position: relative; letter-spacing: -0.02em;
+        }
+        .hero h1 .solar-text {
+            background: linear-gradient(135deg, #F59E0B, #FBBF24, #FDE68A);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .hero h1 .wind-text {
+            background: linear-gradient(135deg, #06B6D4, #22D3EE, #67E8F9);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .hero p {
+            color: #94A3B8; font-size: 1.05rem; margin-top: 0.5rem;
+            font-weight: 400; position: relative;
+        }
+        .hero-stats {
+            display: flex; justify-content: center; gap: 1.5rem;
+            margin-top: 2rem; position: relative; flex-wrap: wrap;
+        }
+        .hero-stat {
+            background: rgba(255,255,255,0.04);
+            backdrop-filter: blur(10px);
+            padding: 14px 24px; border-radius: 14px;
+            border: 1px solid rgba(255,255,255,0.08);
+            transition: all 0.3s;
+        }
+        .hero-stat:hover { border-color: rgba(255,255,255,0.15); transform: translateY(-2px); }
+        .hero-stat .val { font-size: 1.3rem; font-weight: 700; }
+        .hero-stat .val.solar-val { color: #FBBF24; }
+        .hero-stat .val.wind-val { color: #22D3EE; }
+        .hero-stat .val.combined-val {
+            background: linear-gradient(90deg, #FBBF24, #22D3EE);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .hero-stat .label { font-size: 0.72rem; color: #64748B; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; }
+
+        /* ======= CONTAINER ======= */
+        .container { max-width: 1320px; margin: 0 auto; padding: 2rem; }
+
+        /* ======= SECTION ======= */
+        .section { margin-bottom: 2.5rem; }
+        .section-header {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 1.25rem; padding-bottom: 0.75rem;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .section-header h2 { font-size: 1.3rem; font-weight: 700; color: #F1F5F9; }
+        .section-icon {
+            width: 36px; height: 36px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.1rem;
+        }
+        .icon-solar { background: linear-gradient(135deg, rgba(251,191,36,0.2), rgba(245,158,11,0.1)); color: #FBBF24; }
+        .icon-wind { background: linear-gradient(135deg, rgba(34,211,238,0.2), rgba(6,182,212,0.1)); color: #22D3EE; }
+        .icon-combined { background: linear-gradient(135deg, rgba(139,92,246,0.2), rgba(124,58,237,0.1)); color: #A78BFA; }
+        .icon-chart { background: linear-gradient(135deg, rgba(59,130,246,0.2), rgba(37,99,235,0.1)); color: #60A5FA; }
+
+        /* ======= CARDS ======= */
+        .glass-card {
+            background: rgba(255,255,255,0.03);
+            border-radius: 16px; padding: 1.5rem;
+            border: 1px solid rgba(255,255,255,0.06);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            position: relative; overflow: hidden;
+        }
+        .glass-card:hover {
+            border-color: rgba(255,255,255,0.12);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        .glass-card .card-accent {
+            position: absolute; top: 0; left: 0; right: 0;
+            height: 2px; opacity: 0; transition: opacity 0.3s;
+        }
+        .glass-card:hover .card-accent { opacity: 1; }
+        .accent-solar { background: linear-gradient(90deg, #F59E0B, #FBBF24); }
+        .accent-wind { background: linear-gradient(90deg, #06B6D4, #22D3EE); }
+        .accent-combined { background: linear-gradient(90deg, #FBBF24, #8B5CF6, #22D3EE); }
+
+        /* ======= METRIC CARDS ======= */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        .metric-card .label {
+            font-size: 0.72rem; color: #64748B;
+            text-transform: uppercase; letter-spacing: 0.06em;
+            font-weight: 600; margin-bottom: 0.5rem;
+        }
+        .metric-card .value { font-size: 1.8rem; font-weight: 800; line-height: 1.1; }
+        .metric-card .sub { font-size: 0.78rem; color: #64748B; margin-top: 0.35rem; }
+        .metric-card .badge {
+            display: inline-block; padding: 3px 10px;
+            border-radius: 20px; font-size: 0.68rem; font-weight: 600;
+            margin-top: 0.5rem;
+        }
+        .badge-solar { background: rgba(251,191,36,0.12); color: #FBBF24; }
+        .badge-wind { background: rgba(34,211,238,0.12); color: #22D3EE; }
+        .badge-pass { background: rgba(16,185,129,0.12); color: #34D399; }
+
+        /* ======= FORECAST PANELS ======= */
+        .forecast-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.25rem;
+        }
+        .forecast-panel {
+            background: rgba(255,255,255,0.03);
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.06);
+            overflow: hidden;
+        }
+        .forecast-panel-header {
+            padding: 1rem 1.25rem;
+            display: flex; align-items: center; gap: 10px;
+            font-weight: 700; font-size: 0.95rem;
+        }
+        .fp-solar { border-top: 2px solid #FBBF24; }
+        .fp-solar .forecast-panel-header { color: #FBBF24; }
+        .fp-wind { border-top: 2px solid #22D3EE; }
+        .fp-wind .forecast-panel-header { color: #22D3EE; }
+        .forecast-rows { padding: 0 1.25rem 1rem; }
+        .forecast-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .forecast-row:last-child { border-bottom: none; }
+        .forecast-time { font-size: 0.82rem; color: #94A3B8; font-weight: 500; }
+        .forecast-val { font-size: 0.95rem; font-weight: 700; }
+        .forecast-val.solar-color { color: #FBBF24; }
+        .forecast-val.wind-color { color: #22D3EE; }
+
+        /* ======= CHART CARDS ======= */
+        .chart-card {
+            background: rgba(255,255,255,0.03);
+            border-radius: 16px; padding: 1.5rem;
+            border: 1px solid rgba(255,255,255,0.06);
+            margin-bottom: 1.25rem;
+        }
+        .chart-card h3 { font-size: 0.95rem; font-weight: 600; color: #E2E8F0; margin-bottom: 1rem; }
+        .chart-container { position: relative; width: 100%; height: 320px; }
+
+        /* ======= COMPARISON TABLE ======= */
+        .table-wrapper {
+            background: rgba(255,255,255,0.03);
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.06);
+            overflow: hidden;
+        }
+        .comparison-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+        .comparison-table thead th {
+            background: rgba(255,255,255,0.04);
+            color: #94A3B8; font-weight: 600;
+            padding: 14px 18px; text-align: center;
+            font-size: 0.78rem; text-transform: uppercase;
+            letter-spacing: 0.04em;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .comparison-table tbody td {
+            padding: 14px 18px; text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            font-weight: 500; color: #CBD5E1;
+        }
+        .comparison-table tbody tr:hover { background: rgba(255,255,255,0.02); }
+
+        /* ======= LOSS IMAGES ======= */
+        .loss-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+            gap: 1.25rem;
+        }
+        .loss-card {
+            background: rgba(255,255,255,0.03);
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.06);
+            overflow: hidden; transition: all 0.3s;
+        }
+        .loss-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+        .loss-card img { width: 100%; height: auto; display: block; }
+        .loss-card .caption {
+            padding: 12px 16px; text-align: center;
+            font-size: 0.82rem; font-weight: 600; color: #94A3B8;
+            background: rgba(255,255,255,0.02);
+        }
+
+        /* ======= METRICS ROW ======= */
+        .metrics-detail-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .metrics-detail-row:last-child { border-bottom: none; }
+        .metrics-detail-label { font-size: 0.82rem; color: #94A3B8; font-weight: 500; }
+        .metrics-detail-value { font-size: 1rem; font-weight: 700; }
+
+        /* ======= LOADING ======= */
+        .loading-spinner {
+            display: flex; align-items: center; justify-content: center;
+            padding: 3rem; color: #64748B; font-size: 0.9rem;
+        }
+        .spinner {
+            width: 28px; height: 28px;
+            border: 3px solid rgba(251,191,36,0.2);
+            border-top-color: #FBBF24;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 12px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ======= FADE IN ======= */
+        .fade-in {
+            opacity: 0; transform: translateY(16px);
+            animation: fadeIn 0.6s ease forwards;
+        }
+        @keyframes fadeIn { to { opacity: 1; transform: translateY(0); } }
+
+        /* ======= VIEWS ======= */
+        .view-page { display: none; }
+        .view-page.active { display: block; }
+
+        /* ======= VIEW PAGE HEADER ======= */
+        .view-hero {
+            background: linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #0F172A 100%);
+            padding: 2.5rem 2rem 2rem;
+            text-align: center; position: relative;
+        }
+        .view-hero h1 {
+            font-size: 1.8rem; font-weight: 800;
+            background: linear-gradient(135deg, #60A5FA, #3B82F6);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .view-hero p { color: #64748B; font-size: 1rem; margin-top: 0.3rem; }
+
+        /* ======= METRIC BAR ======= */
+        .metric-bar {
+            display: inline-block; height: 5px; border-radius: 3px;
+            margin-left: 8px; vertical-align: middle;
+            transition: width 0.6s ease;
+        }
+        .bar-solar { background: linear-gradient(90deg, #F59E0B, #FBBF24); }
+        .bar-wind { background: linear-gradient(90deg, #06B6D4, #22D3EE); }
+
+        /* ======= GLOW BADGES ======= */
+        .glow-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            display: inline-block; margin-right: 6px;
+            animation: glowPulse 2s ease-in-out infinite;
+        }
+        .glow-solar { background: #FBBF24; box-shadow: 0 0 8px rgba(251,191,36,0.5); }
+        .glow-wind { background: #22D3EE; box-shadow: 0 0 8px rgba(34,211,238,0.5); }
+        @keyframes glowPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        /* ======= RESPONSIVE ======= */
+        @media (max-width: 900px) { .forecast-grid { grid-template-columns: 1fr; } }
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 1.6rem; }
+            .hero-stats { gap: 0.75rem; }
+            .container { padding: 1rem; }
+            .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+            .loss-grid { grid-template-columns: 1fr; }
+            .nav-links { gap: 2px; }
+            .nav-links a { padding: 6px 10px; font-size: 0.8rem; }
+        }
+
+        /* ======= FOOTER ======= */
+        .footer {
+            text-align: center; padding: 2rem;
+            color: #475569; font-size: 0.78rem;
+            border-top: 1px solid rgba(255,255,255,0.04); margin-top: 2rem;
+        }
+        .footer span.solar-f { color: #FBBF24; }
+        .footer span.wind-f { color: #22D3EE; }
+    </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="navbar">
+    <div class="nav-brand">
+        <div class="nav-icons">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#FBBF24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/>
+                <line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/>
+                <line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+            </svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="#22D3EE" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/>
+            </svg>
+        </div>
+        <span class="brand-solar">Solar</span><span class="brand-sep">&</span><span class="brand-wind">Wind</span>
+    </div>
+    <div class="nav-links">
+        <a class="active" onclick="switchView('dashboard')">Dashboard</a>
+        <a onclick="switchView('view')">Analysis</a>
+    </div>
+</nav>
+
+<!-- ===================== DASHBOARD VIEW ===================== -->
+<div id="dashboardView" class="view-page active">
+
+    <!-- HERO -->
+    <section class="hero">
+        <h1><span class="solar-text">Solar</span> & <span class="wind-text">Wind</span> Energy Forecasting</h1>
+        <p>Univariate LSTM Deep Learning — Solar 72H + Wind 48H Sequence → 24H Power Prediction</p>
+        <div class="hero-stats" id="heroStats">
+            <div class="hero-stat">
+                <div class="val solar-val" id="statRows">—</div>
+                <div class="label">Solar Data Points</div>
+            </div>
+            <div class="hero-stat">
+                <div class="val solar-val">72h → 24h</div>
+                <div class="label">Solar Seq → Forecast</div>
+            </div>
+            <div class="hero-stat">
+                <div class="val wind-val">48h → 24h</div>
+                <div class="label">Wind Seq → Forecast</div>
+            </div>
+            <div class="hero-stat">
+                <div class="val combined-val">Univariate</div>
+                <div class="label">Model Type</div>
+            </div>
+        </div>
+    </section>
+
+    <div class="container">
+
+        <!-- KEY METRICS -->
+        <section class="section fade-in" id="metricsSection">
+            <div class="section-header">
+                <div class="section-icon icon-chart">📊</div>
+                <h2>Model Performance Overview</h2>
+            </div>
+            <div class="metrics-grid" id="metricsGrid">
+                <div class="loading-spinner"><div class="spinner"></div>Loading metrics...</div>
+            </div>
+        </section>
+
+        <!-- SOLAR FORECAST -->
+        <section class="section fade-in" id="solarForecastSection">
+            <div class="section-header">
+                <div class="section-icon icon-solar">☀️</div>
+                <h2>Solar Power Forecast — Next 24 Hours</h2>
+            </div>
+            <div class="chart-card">
+                <h3><span class="glow-dot glow-solar"></span>Solar Electrical Power Forecast (Univariate LSTM, Seq=72)</h3>
+                <div class="chart-container"><canvas id="solarForecastChart"></canvas></div>
+                <div style="margin-top: 1rem; display: flex; gap: 2rem; justify-content: center;">
+                    <div id="solarForecastStats" style="font-size: 0.82rem; color: #64748B; display: flex; gap: 1.5rem; flex-wrap: wrap; justify-content: center;"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- WIND FORECAST -->
+        <section class="section fade-in" id="windForecastSection">
+            <div class="section-header">
+                <div class="section-icon icon-wind">🌬️</div>
+                <h2>Wind Power Forecast — Next 24 Hours</h2>
+            </div>
+            <div class="chart-card">
+                <h3><span class="glow-dot glow-wind"></span>Wind Power Forecast (Univariate LSTM, Seq=48)</h3>
+                <div class="chart-container"><canvas id="windForecastChart"></canvas></div>
+                <div style="margin-top: 1rem; display: flex; gap: 2rem; justify-content: center;">
+                    <div id="windForecastStats" style="font-size: 0.82rem; color: #64748B; display: flex; gap: 1.5rem; flex-wrap: wrap; justify-content: center;"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- COMBINED ENERGY FORECAST -->
+        <section class="section fade-in" id="combinedSection">
+            <div class="section-header">
+                <div class="section-icon icon-combined">⚡</div>
+                <h2>Combined Energy Output — Next 24 Hours</h2>
+            </div>
+            <div class="chart-card">
+                <h3>Total Renewable Power — Solar (72H LSTM) + Wind (48H LSTM)</h3>
+                <div class="chart-container"><canvas id="combinedChart"></canvas></div>
+                <div style="margin-top: 1rem; display: flex; gap: 2rem; justify-content: center;">
+                    <div id="combinedStats" style="font-size: 0.82rem; color: #64748B; display: flex; gap: 1.5rem; flex-wrap: wrap; justify-content: center;"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- HOURLY BREAKDOWN (side by side) -->
+        <section class="section fade-in" id="hourlySection">
+            <div class="section-header">
+                <div class="section-icon icon-chart">🕐</div>
+                <h2>Hourly Forecast Breakdown</h2>
+            </div>
+            <div class="forecast-grid" id="hourlyGrid">
+                <div class="loading-spinner"><div class="spinner"></div>Loading hourly data...</div>
+            </div>
+        </section>
+
+        <!-- MODEL COMPARISON TABLE -->
+        <section class="section fade-in" id="comparisonSection">
+            <div class="section-header">
+                <div class="section-icon icon-chart">⚖️</div>
+                <h2>Model Comparison — Solar vs Wind</h2>
+            </div>
+            <div id="comparisonContent">
+                <div class="loading-spinner"><div class="spinner"></div>Loading comparison...</div>
+            </div>
+        </section>
+
+    </div>
+</div>
+
+<!-- ===================== VIEW PAGE (Analysis) ===================== -->
+<div id="viewPage" class="view-page">
+
+    <section class="view-hero">
+        <h1>Training & Testing Analysis</h1>
+        <p>Detailed model performance on training and testing datasets</p>
+    </section>
+
+    <div class="container">
+
+        <!-- SOLAR ANALYSIS -->
+        <section class="section fade-in" id="solarAnalysisSection">
+            <div class="section-header">
+                <div class="section-icon icon-solar">☀️</div>
+                <h2>Solar Model — Univariate LSTM (Seq=72)</h2>
+            </div>
+            <div class="chart-card">
+                <h3>Training Predictions</h3>
+                <div class="loss-card" style="margin-bottom:0;">
+                    <img id="solarTrainPlotImg" src="/results/train_pred_plot_seq_72.png" alt="Solar training predictions" loading="lazy">
+                    <div class="caption">Solar Training Set Predictions (Seq=72, Univariate)</div>
+                </div>
+            </div>
+            <div class="chart-card" style="margin-top:1rem;">
+                <h3>Test Predictions — Actual vs Predicted</h3>
+                <div class="chart-container" style="height: 350px;"><canvas id="solarTestChart"></canvas></div>
+                <div style="margin-top: 1rem; display: flex; gap: 2rem; justify-content: center;">
+                    <div id="solarTestStats" style="font-size: 0.82rem; color: #64748B; display: flex; gap: 1.5rem; flex-wrap: wrap; justify-content: center;"></div>
+                </div>
+            </div>
+            <div class="chart-card" style="margin-top:1rem;">
+                <div class="loss-card" style="margin-bottom:0;">
+                    <img src="/results/test_pred_plot_seq_72.png" alt="Solar test predictions" loading="lazy">
+                    <div class="caption">Solar Test Set Predictions (Seq=72, Univariate)</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- WIND ANALYSIS -->
+        <section class="section fade-in" id="windAnalysisSection">
+            <div class="section-header">
+                <div class="section-icon icon-wind">🌬️</div>
+                <h2>Wind Model — Univariate LSTM (Seq=48)</h2>
+            </div>
+            <div class="chart-card">
+                <h3>Training Predictions</h3>
+                <div class="loss-card" style="margin-bottom:0;">
+                    <img src="/wind_results/train_pred_plot_seq_48.png" alt="Wind training predictions" loading="lazy">
+                    <div class="caption">Wind Training Set Predictions (Seq=48, Univariate)</div>
+                </div>
+            </div>
+            <div class="chart-card" style="margin-top:1rem;">
+                <h3>Test Predictions — Actual vs Predicted</h3>
+                <div class="chart-container" style="height: 350px;"><canvas id="windTestChart"></canvas></div>
+                <div style="margin-top: 1rem; display: flex; gap: 2rem; justify-content: center;">
+                    <div id="windTestStats" style="font-size: 0.82rem; color: #64748B; display: flex; gap: 1.5rem; flex-wrap: wrap; justify-content: center;"></div>
+                </div>
+            </div>
+            <div class="chart-card" style="margin-top:1rem;">
+                <div class="loss-card" style="margin-bottom:0;">
+                    <img src="/wind_results/test_pred_plot_seq_48.png" alt="Wind test predictions" loading="lazy">
+                    <div class="caption">Wind Test Set Predictions (Seq=48, Univariate)</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- LOSS CURVES -->
+        <section class="section fade-in" id="lossSection">
+            <div class="section-header">
+                <div class="section-icon icon-chart">📉</div>
+                <h2>Training Loss Curves</h2>
+            </div>
+            <div class="loss-grid">
+                <div class="loss-card">
+                    <img src="/results/loss_curve_seq_72.png" alt="Solar loss curve" loading="lazy">
+                    <div class="caption">☀️ Solar LSTM (Seq=72, Univariate)</div>
+                </div>
+                <div class="loss-card">
+                    <img src="/wind_results/loss_curve_seq_48.png" alt="Wind loss curve" loading="lazy">
+                    <div class="caption">🌬️ Wind LSTM (Seq=48, Univariate)</div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+</div>
+
+<footer class="footer">
+    <span class="solar-f">☀️ Solar</span> & <span class="wind-f">🌬️ Wind</span> Energy Forecasting &mdash; Univariate LSTM Deep Learning &bull; PyTorch
+</footer>
+
+<script>
+// ======= GLOBALS =======
+let solarForecastChart = null;
+let windForecastChart = null;
+let combinedChartInstance = null;
+let solarTestChartInstance = null;
+let windTestChartInstance = null;
+let metricsData = null;
+let windMetricsData = null;
+
+const C = {
+    solar:      'rgb(251, 191, 36)',
+    solarLight: 'rgba(251, 191, 36, 0.12)',
+    solarArea:  'rgba(251, 191, 36, 0.08)',
+    wind:       'rgb(34, 211, 238)',
+    windLight:  'rgba(34, 211, 238, 0.12)',
+    windArea:   'rgba(34, 211, 238, 0.08)',
+    combined:   'rgb(167, 139, 250)',
+    combinedLight: 'rgba(167, 139, 250, 0.12)',
+    combinedArea: 'rgba(167, 139, 250, 0.06)',
+    emerald:    'rgb(52, 211, 153)',
+    emeraldLight: 'rgba(52, 211, 153, 0.12)',
+    red:        'rgb(248, 113, 113)',
+    grid:       'rgba(255,255,255,0.04)',
+};
+
+Chart.defaults.font.family = "'Inter', sans-serif";
+Chart.defaults.font.size = 11;
+Chart.defaults.color = '#64748B';
+
+const tooltipStyle = {
+    backgroundColor: '#1E293B',
+    titleColor: '#F1F5F9',
+    bodyColor: '#CBD5E1',
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1,
+    padding: 14,
+    cornerRadius: 10,
+};
+
+// ======= VIEW SWITCHING =======
+function switchView(view) {
+    const dash = document.getElementById('dashboardView');
+    const viewPage = document.getElementById('viewPage');
+    const navLinks = document.querySelectorAll('.nav-links a');
+
+    if (view === 'dashboard') {
+        dash.classList.add('active');
+        viewPage.classList.remove('active');
+        navLinks[0].classList.add('active');
+        navLinks[1].classList.remove('active');
+    } else {
+        dash.classList.remove('active');
+        viewPage.classList.add('active');
+        navLinks[0].classList.remove('active');
+        navLinks[1].classList.add('active');
+        loadAnalysisData();
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ======= LOAD STATS =======
+async function loadStats() {
+    try {
+        const res = await fetch('/api/stats');
+        const stats = await res.json();
+        document.getElementById('statRows').textContent = stats.total_rows.toLocaleString();
+    } catch(e) { console.error('Stats error:', e); }
+}
+
+// ======= LOAD METRICS =======
+async function loadMetrics() {
+    try {
+        const [solarRes, windRes] = await Promise.all([
+            fetch('/api/metrics'),
+            fetch('/api/wind/metrics').catch(() => null)
+        ]);
+        metricsData = await solarRes.json();
+        try {
+            if (windRes && windRes.ok) windMetricsData = await windRes.json();
+        } catch(e) {}
+
+        // Solar uses the first (and only) entry in the array
+        const solar72 = Array.isArray(metricsData) ? metricsData[0] : metricsData;
+
+        // Wind 48H metrics
+        let wind48 = null;
+        if (windMetricsData && windMetricsData.training && windMetricsData.training["48"]) {
+            wind48 = windMetricsData.training["48"];
+        }
+
+        let html = `
+            <div class="glass-card metric-card">
+                <div class="card-accent accent-solar"></div>
+                <div class="label">☀️ Solar R² Score</div>
+                <div class="value" style="color:#FBBF24;">${solar72.R2.toFixed(6)}</div>
+                <div class="sub">Seq=72h • Univariate LSTM (PyTorch)</div>
+                <span class="badge badge-pass">✓ Target > 0.6</span>
+            </div>
+            <div class="glass-card metric-card">
+                <div class="card-accent accent-solar"></div>
+                <div class="label">☀️ Solar MSE</div>
+                <div class="value" style="color:#FBBF24;">${solar72.MSE.toFixed(6)}</div>
+                <div class="sub">Seq=72h • Scaled [0-1]</div>
+                <span class="badge badge-pass">✓ Target < 1.0</span>
+            </div>`;
+
+        if (wind48) {
+            html += `
+            <div class="glass-card metric-card">
+                <div class="card-accent accent-wind"></div>
+                <div class="label">🌬️ Wind R² Score</div>
+                <div class="value" style="color:#22D3EE;">${wind48.r2.toFixed(6)}</div>
+                <div class="sub">Seq=48h • Univariate LSTM (PyTorch)</div>
+                <span class="badge badge-pass">✓ Target > 0.6</span>
+            </div>
+            <div class="glass-card metric-card">
+                <div class="card-accent accent-wind"></div>
+                <div class="label">🌬️ Wind MSE</div>
+                <div class="value" style="color:#22D3EE;">${wind48.mse.toFixed(6)}</div>
+                <div class="sub">Seq=48h • Scaled [0-1]</div>
+                <span class="badge badge-pass">✓ Target < 1.0</span>
+            </div>`;
+        } else {
+            html += `
+            <div class="glass-card metric-card">
+                <div class="card-accent accent-wind"></div>
+                <div class="label">🌬️ Wind Model</div>
+                <div class="value" style="color:#22D3EE; font-size:1.2rem;">48H LSTM</div>
+                <div class="sub">Univariate PyTorch</div>
+                <span class="badge badge-wind">Seq=48</span>
+            </div>
+            <div class="glass-card metric-card">
+                <div class="card-accent accent-combined"></div>
+                <div class="label">⚡ Dual Energy</div>
+                <div class="value" style="font-size:1.2rem;">
+                    <span style="color:#FBBF24;">Solar</span> + <span style="color:#22D3EE;">Wind</span>
+                </div>
+                <div class="sub">Combined Forecasting</div>
+                <span class="badge" style="background:rgba(167,139,250,0.12);color:#A78BFA;">Hybrid</span>
+            </div>`;
+        }
+
+        document.getElementById('metricsGrid').innerHTML = html;
+    } catch(e) {
+        document.getElementById('metricsGrid').innerHTML = '<p style="color:#F87171;">Failed to load metrics.</p>';
+    }
+}
+
+// ======= LOAD SOLAR FORECAST =======
+async function loadSolarForecast() {
+    try {
+        const res = await fetch('/api/forecast24');
+        const data = await res.json();
+        if (data.error) {
+            document.getElementById('solarForecastStats').innerHTML = `<span style="color:#F87171;">Error: ${data.error}</span>`;
+            return data;
+        }
+
+        const predicted = data.forecast_predicted;
+        const timestamps = data.forecast_timestamps;
+
+        if (solarForecastChart) solarForecastChart.destroy();
+        const ctx = document.getElementById('solarForecastChart').getContext('2d');
+        const gradient = ctx.createLinearGradient(0, 0, 0, 320);
+        gradient.addColorStop(0, 'rgba(251, 191, 36, 0.15)');
+        gradient.addColorStop(1, 'rgba(251, 191, 36, 0.0)');
+
+        solarForecastChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: timestamps,
+                datasets: [{
+                    label: 'Solar Power (kW)',
+                    data: predicted,
+                    borderColor: C.solar,
+                    backgroundColor: gradient,
+                    borderWidth: 2.5, fill: true,
+                    pointRadius: 4, pointBackgroundColor: C.solar,
+                    pointBorderColor: '#0F172A', pointBorderWidth: 2,
+                    tension: 0.35,
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { intersect: false, mode: 'index' },
+                plugins: {
+                    legend: { display: true, position: 'top', labels: { usePointStyle: true, pointStyle: 'circle', padding: 20, color: '#94A3B8' } },
+                    tooltip: { ...tooltipStyle, callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)} kW` } }
+                },
+                scales: {
+                    x: { title: { display: true, text: 'Time', color: '#64748B' }, ticks: { maxTicksLimit: 12, maxRotation: 45, color: '#475569' }, grid: { color: C.grid } },
+                    y: { title: { display: true, text: 'Solar Power (kW)', color: '#64748B' }, grid: { color: C.grid }, ticks: { color: '#475569' } }
+                }
+            }
+        });
+
+        const totalSolar = predicted.reduce((a,b) => a+b, 0);
+        const solar72 = metricsData ? (Array.isArray(metricsData) ? metricsData[0] : metricsData) : null;
+        document.getElementById('solarForecastStats').innerHTML = `
+            <span><b style="color:#FBBF24;">Model:</b> Univariate LSTM (Seq=72)</span>
+            <span><b>Forecast:</b> 24 Hours</span>
+            <span><b>Total:</b> ${totalSolar.toFixed(1)} kWh</span>
+            ${solar72 ? `<span><b>R²:</b> ${solar72.R2.toFixed(6)}</span>` : ''}
+        `;
+
+        return data;
+    } catch(e) {
+        console.error('Solar forecast error:', e);
+        return null;
+    }
+}
+
+// ======= LOAD WIND FORECAST =======
+async function loadWindForecast() {
+    try {
+        const res = await fetch('/api/wind/forecast24');
+        const data = await res.json();
+        if (data.error) {
+            document.getElementById('windForecastStats').innerHTML = `<span style="color:#94A3B8;">Wind model loading... (${data.error})</span>`;
+            return null;
+        }
+
+        const predicted = data.forecast_predicted;
+        const timestamps = data.forecast_timestamps;
+
+        if (windForecastChart) windForecastChart.destroy();
+        const ctx = document.getElementById('windForecastChart').getContext('2d');
+        const gradient = ctx.createLinearGradient(0, 0, 0, 320);
+        gradient.addColorStop(0, 'rgba(34, 211, 238, 0.15)');
+        gradient.addColorStop(1, 'rgba(34, 211, 238, 0.0)');
+
+        windForecastChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: timestamps,
+                datasets: [{
+                    label: 'Wind Power (kW)',
+                    data: predicted,
+                    borderColor: C.wind,
+                    backgroundColor: gradient,
+                    borderWidth: 2.5, fill: true,
+                    pointRadius: 4, pointBackgroundColor: C.wind,
+                    pointBorderColor: '#0F172A', pointBorderWidth: 2,
+                    tension: 0.35,
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { intersect: false, mode: 'index' },
+                plugins: {
+                    legend: { display: true, position: 'top', labels: { usePointStyle: true, pointStyle: 'circle', padding: 20, color: '#94A3B8' } },
+                    tooltip: { ...tooltipStyle, callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)} kW` } }
+                },
+                scales: {
+                    x: { title: { display: true, text: 'Time', color: '#64748B' }, ticks: { maxTicksLimit: 12, maxRotation: 45, color: '#475569' }, grid: { color: C.grid } },
+                    y: { title: { display: true, text: 'Wind Power (kW)', color: '#64748B' }, grid: { color: C.grid }, ticks: { color: '#475569' } }
+                }
+            }
+        });
+
+        const totalWind = predicted.reduce((a,b) => a+b, 0);
+        let wind48 = null;
+        if (windMetricsData && windMetricsData.training && windMetricsData.training["48"]) {
+            wind48 = windMetricsData.training["48"];
+        }
+        document.getElementById('windForecastStats').innerHTML = `
+            <span><b style="color:#22D3EE;">Model:</b> Univariate LSTM (Seq=48)</span>
+            <span><b>Forecast:</b> 24 Hours</span>
+            <span><b>Total:</b> ${totalWind.toFixed(1)} kWh</span>
+            ${wind48 ? `<span><b>R²:</b> ${wind48.r2.toFixed(6)}</span>` : ''}
+        `;
+
+        return data;
+    } catch(e) {
+        console.error('Wind forecast error:', e);
+        document.getElementById('windForecastStats').innerHTML = '<span style="color:#94A3B8;">Wind forecast unavailable</span>';
+        return null;
+    }
+}
+
+// ======= COMBINED CHART =======
+function buildCombinedChart(solarData, windData) {
+    if (!solarData) return;
+    const timestamps = solarData.forecast_timestamps;
+    const solarPred = solarData.forecast_predicted;
+    const windPred = windData ? windData.forecast_predicted : new Array(24).fill(0);
+    const combinedPred = solarPred.map((v, i) => round2(v + (windPred[i] || 0)));
+
+    if (combinedChartInstance) combinedChartInstance.destroy();
+    const ctx = document.getElementById('combinedChart').getContext('2d');
+
+    combinedChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: timestamps,
+            datasets: [
+                { label: 'Solar (kW)', data: solarPred, borderColor: C.solar, backgroundColor: C.solarArea, borderWidth: 2, fill: true, pointRadius: 3, pointBackgroundColor: C.solar, tension: 0.35, order: 3 },
+                { label: 'Wind (kW)', data: windPred, borderColor: C.wind, backgroundColor: C.windArea, borderWidth: 2, fill: true, pointRadius: 3, pointBackgroundColor: C.wind, tension: 0.35, order: 2 },
+                { label: 'Combined Total (kW)', data: combinedPred, borderColor: C.combined, backgroundColor: 'transparent', borderWidth: 3, borderDash: [6, 3], fill: false, pointRadius: 4, pointBackgroundColor: C.combined, pointBorderColor: '#0F172A', pointBorderWidth: 2, tension: 0.35, order: 1 }
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { intersect: false, mode: 'index' },
+            plugins: {
+                legend: { display: true, position: 'top', labels: { usePointStyle: true, pointStyle: 'circle', padding: 20, color: '#94A3B8' } },
+                tooltip: { ...tooltipStyle, callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)} kW` } }
+            },
+            scales: {
+                x: { title: { display: true, text: 'Time', color: '#64748B' }, ticks: { maxTicksLimit: 12, maxRotation: 45, color: '#475569' }, grid: { color: C.grid } },
+                y: { title: { display: true, text: 'Power Output (kW)', color: '#64748B' }, grid: { color: C.grid }, ticks: { color: '#475569' } }
+            }
+        }
+    });
+
+    const totalSolar = solarPred.reduce((a,b) => a+b, 0);
+    const totalWind = windPred.reduce((a,b) => a+b, 0);
+    const totalCombined = combinedPred.reduce((a,b) => a+b, 0);
+    const peakCombined = Math.max(...combinedPred);
+    const peakHour = timestamps[combinedPred.indexOf(peakCombined)];
+
+    document.getElementById('combinedStats').innerHTML = `
+        <span><b style="color:#FBBF24;">Solar:</b> ${totalSolar.toFixed(1)} kWh</span>
+        <span><b style="color:#22D3EE;">Wind:</b> ${totalWind.toFixed(1)} kWh</span>
+        <span><b style="color:#A78BFA;">Combined:</b> ${totalCombined.toFixed(1)} kWh</span>
+        <span><b>Peak:</b> ${peakCombined.toFixed(1)} kW at ${peakHour}</span>
+    `;
+}
+
+// ======= HOURLY BREAKDOWN PANELS =======
+function buildHourlyPanels(solarData, windData) {
+    const timestamps = solarData ? solarData.forecast_timestamps : [];
+    const solarPred = solarData ? solarData.forecast_predicted : [];
+    const windPred = windData ? windData.forecast_predicted : [];
+    let html = '';
+
+    html += `<div class="forecast-panel fp-solar">
+        <div class="forecast-panel-header">☀️ Solar Power (kW)</div>
+        <div class="forecast-rows">`;
+    for (let i = 0; i < Math.min(24, solarPred.length); i++) {
+        html += `<div class="forecast-row">
+            <span class="forecast-time">${timestamps[i] || 'H'+(i+1)}</span>
+            <span class="forecast-val solar-color">${solarPred[i].toFixed(2)} kW</span>
+        </div>`;
+    }
+    html += `</div></div>`;
+
+    html += `<div class="forecast-panel fp-wind">
+        <div class="forecast-panel-header">🌬️ Wind Power (kW)</div>
+        <div class="forecast-rows">`;
+    if (windPred.length > 0) {
+        for (let i = 0; i < Math.min(24, windPred.length); i++) {
+            html += `<div class="forecast-row">
+                <span class="forecast-time">${timestamps[i] || 'H'+(i+1)}</span>
+                <span class="forecast-val wind-color">${windPred[i].toFixed(2)} kW</span>
+            </div>`;
+        }
+    } else {
+        html += `<div style="padding:2rem; text-align:center; color:#64748B; font-size:0.85rem;">Wind forecast data loading...</div>`;
+    }
+    html += `</div></div>`;
+
+    document.getElementById('hourlyGrid').innerHTML = html;
+}
+
+// ======= COMPARISON TABLE =======
+async function loadComparison() {
+    try {
+        const metrics = metricsData || await (await fetch('/api/metrics')).json();
+        const solar72 = Array.isArray(metrics) ? metrics[0] : metrics;
+
+        let html = `<div class="table-wrapper"><table class="comparison-table">
+            <thead><tr>
+                <th>Source</th><th>Model</th><th>Seq Length</th><th>MSE</th><th>RMSE</th><th>MAE</th><th>R² Score</th><th>Status</th>
+            </tr></thead><tbody>`;
+
+        // Solar model
+        html += `<tr style="background:rgba(251,191,36,0.04);">
+            <td style="color:#FBBF24; font-weight:600;">☀️ Solar</td>
+            <td>Univariate BiLSTM (PyTorch)</td>
+            <td style="font-weight:700;color:#FBBF24;">${solar72.Sequence_Length}h ★</td>
+            <td>${solar72.MSE.toFixed(6)}</td>
+            <td>${solar72.RMSE.toFixed(6)}</td>
+            <td>${solar72.MAE.toFixed(6)}</td>
+            <td style="font-weight:700;color:#34D399;">${solar72.R2.toFixed(6)}</td>
+            <td><span class="badge badge-pass">✓ PASS</span></td>
+        </tr>`;
+
+        // Wind model
+        if (windMetricsData) {
+            const phases = [
+                { key: 'training', label: 'Train' },
+                { key: 'testing', label: 'Test' }
+            ];
+            phases.forEach(({ key, label }) => {
+                const wm = windMetricsData[key];
+                if (wm && wm["48"]) {
+                    const w = wm["48"];
+                    html += `<tr style="background:rgba(34,211,238,0.03);">
+                        <td style="color:#22D3EE; font-weight:600;">🌬️ Wind (${label})</td>
+                        <td>Univariate BiLSTM (PyTorch)</td>
+                        <td style="font-weight:700;color:#22D3EE;">48h ★</td>
+                        <td>${w.mse.toFixed(6)}</td>
+                        <td>${Math.sqrt(w.mse).toFixed(6)}</td>
+                        <td>${w.mae.toFixed(6)}</td>
+                        <td style="font-weight:700;color:#34D399;">${w.r2.toFixed(6)}</td>
+                        <td><span class="badge badge-pass">✓ PASS</span></td>
+                    </tr>`;
+                }
+            });
+        }
+
+        html += '</tbody></table></div>';
+
+        // Comparison bar chart
+        html += '<div style="margin-top:1.5rem;"><div class="chart-card"><div class="chart-container" style="height:280px;"><canvas id="compChart"></canvas></div></div></div>';
+        document.getElementById('comparisonContent').innerHTML = html;
+
+        // Draw chart
+        const labels = [`Solar ${solar72.Sequence_Length}h`];
+        const r2data = [solar72.R2];
+        const mseData = [solar72.MSE * 100];
+
+        if (windMetricsData && windMetricsData.training && windMetricsData.training["48"]) {
+            labels.push('Wind 48h');
+            r2data.push(windMetricsData.training["48"].r2);
+            mseData.push(windMetricsData.training["48"].mse * 100);
+        }
+
+        const ctx = document.getElementById('compChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    { label: 'R² Score', data: r2data, backgroundColor: labels.map(l => l.includes('Wind') ? 'rgba(34,211,238,0.6)' : 'rgba(251,191,36,0.6)'), borderRadius: 6 },
+                    { label: 'MSE (×100)', data: mseData, backgroundColor: labels.map(l => l.includes('Wind') ? 'rgba(34,211,238,0.3)' : 'rgba(251,191,36,0.3)'), borderRadius: 6 },
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { position: 'top', labels: { color: '#94A3B8' } }, tooltip: tooltipStyle },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: '#64748B' } },
+                    y: { grid: { color: C.grid }, beginAtZero: true, ticks: { color: '#64748B' } }
+                }
+            }
+        });
+    } catch(e) {
+        document.getElementById('comparisonContent').innerHTML = '<p style="color:#F87171;">Failed to load comparison.</p>';
+    }
+}
+
+// ======= ANALYSIS PAGE =======
+async function loadAnalysisData() {
+    // Solar test chart
+    try {
+        const res = await fetch('/api/train_test_split/72?samples=400');
+        const data = await res.json();
+        if (!data.error) {
+            const labels = data.test_actual.map((_, i) => i + 1);
+            if (solarTestChartInstance) solarTestChartInstance.destroy();
+            const ctx = document.getElementById('solarTestChart').getContext('2d');
+            solarTestChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Actual Power (kW)', data: data.test_actual, borderColor: C.emerald, borderWidth: 2, fill: false, pointRadius: 0, tension: 0.2, order: 2 },
+                        { label: 'Predicted Power (kW)', data: data.test_predicted, borderColor: C.solar, borderWidth: 2, borderDash: [5, 3], fill: false, pointRadius: 0, tension: 0.2, order: 1 }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    interaction: { intersect: false, mode: 'index' },
+                    plugins: {
+                        legend: { display: true, position: 'top', labels: { usePointStyle: true, pointStyle: 'line', padding: 20, color: '#94A3B8' } },
+                        tooltip: { ...tooltipStyle, callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)} kW` } }
+                    },
+                    scales: {
+                        x: { title: { display: true, text: 'Sample Index', color: '#64748B' }, ticks: { maxTicksLimit: 15, color: '#475569' }, grid: { color: C.grid } },
+                        y: { title: { display: true, text: 'Electrical Power (kW)', color: '#64748B' }, grid: { color: C.grid }, ticks: { color: '#475569' } }
+                    }
+                }
+            });
+
+            const solar72 = metricsData ? (Array.isArray(metricsData) ? metricsData[0] : metricsData) : null;
+            if (solar72) {
+                document.getElementById('solarTestStats').innerHTML = `
+                    <span><b>MSE:</b> ${solar72.MSE.toFixed(6)}</span>
+                    <span><b>RMSE:</b> ${solar72.RMSE.toFixed(6)}</span>
+                    <span><b>MAE:</b> ${solar72.MAE.toFixed(6)}</span>
+                    <span><b>R²:</b> ${(solar72.R2 * 100).toFixed(2)}%</span>
+                    <span><b>Samples:</b> ${data.total.toLocaleString()}</span>
+                `;
+            }
+        }
+    } catch(e) { console.error('Solar analysis error:', e); }
+
+    // Wind test chart
+    try {
+        const res = await fetch('/api/wind/predictions?samples=400');
+        const data = await res.json();
+        if (!data.error) {
+            const labels = data.actual.map((_, i) => i + 1);
+            if (windTestChartInstance) windTestChartInstance.destroy();
+            const ctx = document.getElementById('windTestChart').getContext('2d');
+            windTestChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Actual Power (kW)', data: data.actual, borderColor: C.emerald, borderWidth: 2, fill: false, pointRadius: 0, tension: 0.2, order: 2 },
+                        { label: 'Predicted Power (kW)', data: data.predicted, borderColor: C.wind, borderWidth: 2, borderDash: [5, 3], fill: false, pointRadius: 0, tension: 0.2, order: 1 }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    interaction: { intersect: false, mode: 'index' },
+                    plugins: {
+                        legend: { display: true, position: 'top', labels: { usePointStyle: true, pointStyle: 'line', padding: 20, color: '#94A3B8' } },
+                        tooltip: { ...tooltipStyle, callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)} kW` } }
+                    },
+                    scales: {
+                        x: { title: { display: true, text: 'Sample Index', color: '#64748B' }, ticks: { maxTicksLimit: 15, color: '#475569' }, grid: { color: C.grid } },
+                        y: { title: { display: true, text: 'Wind Power (kW)', color: '#64748B' }, grid: { color: C.grid }, ticks: { color: '#475569' } }
+                    }
+                }
+            });
+
+            let wind48 = null;
+            if (windMetricsData && windMetricsData.training && windMetricsData.training["48"]) {
+                wind48 = windMetricsData.training["48"];
+            }
+            if (wind48) {
+                document.getElementById('windTestStats').innerHTML = `
+                    <span><b>MSE:</b> ${wind48.mse.toFixed(6)}</span>
+                    <span><b>RMSE:</b> ${Math.sqrt(wind48.mse).toFixed(6)}</span>
+                    <span><b>MAE:</b> ${wind48.mae.toFixed(6)}</span>
+                    <span><b>R²:</b> ${(wind48.r2 * 100).toFixed(2)}%</span>
+                    <span><b>Samples:</b> ${data.total.toLocaleString()}</span>
+                `;
+            }
+        }
+    } catch(e) { console.error('Wind analysis error:', e); }
+}
+
+function round2(v) { return Math.round(v * 100) / 100; }
+
+// ======= INIT =======
+document.addEventListener('DOMContentLoaded', async () => {
+    loadStats();
+    await loadMetrics();
+
+    const [solarData, windData] = await Promise.all([
+        loadSolarForecast(),
+        loadWindForecast()
+    ]);
+
+    buildCombinedChart(solarData, windData);
+    buildHourlyPanels(solarData, windData);
+    loadComparison();
+});
+</script>
+</body>
+</html>

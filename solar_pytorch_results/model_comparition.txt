@@ -1,0 +1,15 @@
+===== MODEL COMPARISON (Scaled Metrics) =====
+   Sequence_Length       MSE       MAE        R2
+0               24  0.008121  0.062986  0.900826
+1               48  0.008128  0.062724  0.900680
+2               72  0.008117  0.062808  0.900831
+
+===== TARGET CHECK =====
+Seq 24: MSE=0.008121 [PASS] | MAE=0.062986 [PASS] | R2=0.900826 [PASS]
+Seq 48: MSE=0.008128 [PASS] | MAE=0.062724 [PASS] | R2=0.900680 [PASS]
+Seq 72: MSE=0.008117 [PASS] | MAE=0.062808 [PASS] | R2=0.900831 [PASS]
+
+ALL TARGETS MET!
+
+Everything saved inside folder: solar_pytorch_results
+PS A:\solar forecasting> 

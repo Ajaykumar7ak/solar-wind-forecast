@@ -1,0 +1,9 @@
+flask>=3.0
+gunicorn
+numpy
+pandas
+scikit-learn
+joblib
+matplotlib
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
